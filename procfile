@@ -1,1 +1,1 @@
-web: gunicorn denuncias:app
+web: gunicorn app:app
