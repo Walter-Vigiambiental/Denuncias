@@ -197,7 +197,3 @@ def exportar_pdf():
     pdf.save()
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name="historico_denuncias.pdf", mimetype="application/pdf")
-
-if __name__ == "__main__":
-    app.run( ... )
-
