@@ -1,1 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Denúncias</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 40px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #ddd;
+            border: none;
+            border-radius: 6px 6px 0 0;
+            margin-right: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .tab-button.active {
+            background-color: #fff;
+            border-bottom: 2px solid #fff;
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 0 6px 6px 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-container {
+            max-width: 500px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 4px;
+            color: #444;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 16px;
+            margin-top: 20px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #005fa3;
+        }
+
+        .fixed-logos {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .fixed-logos img {
+            height: 150px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f0f0f0;
+        }
+
+        .filtro-container {
+            margin-bottom: 20px;
+        }
+
+        .filtro-container select {
+            padding: 6px;
+            margin-right: 10px;
+        }
+
+        .excluir-form {
+            display: inline;
+        }
+
+        .excluir-form input {
+            width: 100px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="fixed-logos">
+        <img src="{{ url_for('static', filename='logo1.png') }}" alt="Logo 1">
+        <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
+    </div>
+
+    <h1>Registro de Denúncias</h1>
+
+    <div class="tabs">
+        <button class="tab-button" onclick="showTab('formulario')">Formulário</button>
+        <button class="tab-button" onclick="showTab('historico')">Histórico</button>
+    </div>
+
+    <div id="formulario" class="tab-content">
+        <div class="form-container">
+            <form method="POST">
+                <label for="denunciante">Denunciante:</label>
+                <input type="text" name="denunciante" id="denunciante" required>
+
+                <label for="tipo">Tipo de Denúncia:</label>
+                <input type="text" name="tipo" id="tipo" required>
+
+                <label for="local">Local:</label>
+                <input type="text" name="local" id="local" required>
+
+                <label for="endereco">Endereço:</label>
+                <input type="text" name="endereco" id="endereco" required>
+
+                <label for="email">E-mail:</label>
+                <input type="email" name="email" id="email" placeholder="Digite seu e-mail" required>
+
+                <label for="telefone">Telefone de Contato:</label>
+                <input type="text" name="telefone" id="telefone" required>
+
+                <label for="usuario">Usuário (responsável pelo registro):</label>
+                <input type="text" name="usuario" id="usuario" placeholder="Nome do agente ou responsável" required>
+
+                <button type="submit">Registrar Denúncia</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="historico" class="tab-content">
+        <div class="filtro-container">
+            <form method="GET">
+                <input type="hidden" name="aba" value="historico">
+                <label for="mes">Mês:</label>
+                <select name="mes" id="mes">
+                    <option value="">Todos</option>
+                    {% for m in range(1,13) %}
+                        <option value="{{ '%02d' % m }}" {% if request.args.get('mes') == '%02d' % m %}selected{% endif %}>{{ '%02d' % m }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="ano">Ano:</label>
+                <select name="ano" id="ano">
+                    <option value="">Todos</option>
+                    {% for a in range(2020, 2031) %}
+                        <option value="{{ a }}" {% if request.args.get('ano') == a|string %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit">Filtrar</button>
+                <a href="/exportar_pdf" style="margin-left: 20px;">Exportar PDF</a>
+            </form>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Protocolo</th>
+                    <th>Data</th>
+                    <th>Denunciante</th>
+                    <th>Tipo</th>
+                    <th>Local</th>
+                    <th>Endereço</th>
+                    <th>E-mail</th>
+                    <th>Telefone</th>
+                    <th>Usuário</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in historico %}
+                <tr>
+                    <td>{{ item["Nº Protocolo"] }}</td>
+                    <td>{{ item["Data Denúncia"] }}</td>
+                    <td>{{ item["Denunciante"] }}</td>
+                    <td>{{ item["Tipo Denúncia"] }}</td>
+                    <td>{{ item["Local"] }}</td>
+                    <td>{{ item["Endereço"] }}</td>
+                    <td>{{ item["E-mail"] }}</td>
+                    <td>{{ item["Telefone Contato"] }}</td>
+                    <td>{{ item["Usuário"] }}</td>
+                    <td>
+                        <form method="POST" action="/excluir" class="excluir-form">
+                            <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
+                            <input type="password" name="senha" placeholder="Senha" required>
+                            <button type="submit">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            const activeButton = document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`);
+            if (activeButton) activeButton.classList.add('active');
+        }
+
+        window.onload = function () {
+            const aba = "{{ aba | default('formulario') }}";
+            showTab(aba);
+        };
+    </script>
+</body>
+</html>
 
