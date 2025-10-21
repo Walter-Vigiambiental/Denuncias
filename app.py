@@ -35,8 +35,10 @@ def gerar_relatorio(dados):
     return nome_arquivo
 
 def enviar_email(dados, relatorio_path):
-    with open("config_email.json") as f:
-        config = json.load(f)
+    config = {
+        "email": os.environ.get("EMAIL_REMETENTE"),
+        "senha": os.environ.get("EMAIL_SENHA")
+    }
 
     msg = EmailMessage()
     msg["Subject"] = f"Denúncia {dados['Nº Protocolo']}"
@@ -147,21 +149,17 @@ def exportar_pdf():
         logo_width = 100
         logo_height = 50
 
-        # Logo esquerda
         if os.path.exists(logo1_path):
             pdf.drawImage(logo1_path, x=20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
 
-        # Logo direita
         if os.path.exists(logo2_path):
             pdf.drawImage(logo2_path, x=width - logo_width - 20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
 
-        # Título centralizado
         pdf.setFont("Helvetica-Bold", 12)
         titulo = "Histórico de Denúncias"
         texto_largura = pdf.stringWidth(titulo, "Helvetica-Bold", 12)
         centro_x = (width - texto_largura) / 2
         pdf.drawString(centro_x, logo_y + 15, titulo)
-
         pdf.setFont("Helvetica", 9)
 
     desenhar_cabecalho()
@@ -201,4 +199,4 @@ def exportar_pdf():
     return send_file(buffer, as_attachment=True, download_name="historico_denuncias.pdf", mimetype="application/pdf")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
