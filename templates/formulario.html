@@ -1,221 +1,185 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <title>Registro de Denúncias - Vigiagua</title>
-    <style>
-        body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f6f8;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background: white;
-            padding: 10px 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        header img {
-            height: 60px;
-        }
-        .container {
-            padding: 30px;
-            max-width: 800px;
-            margin: auto;
-        }
-        h1 {
-            text-align: center;
-            color: #004aad;
-        }
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        .tab {
-            padding: 10px 25px;
-            background: #e0e0e0;
-            border-radius: 10px 10px 0 0;
-            margin: 0 5px;
-            cursor: pointer;
-        }
-        .tab.active {
-            background: #004aad;
-            color: white;
-        }
-        form {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        label {
-            font-weight: bold;
-            color: #333;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 6px 0 15px 0;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 15px;
-        }
-        button {
-            background-color: #004aad;
-            color: white;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 15px;
-        }
-        button:hover {
-            background-color: #003a87;
-        }
-        .mensagem {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .sucesso { background: #c8e6c9; color: #256029; }
-        .erro { background: #ffcdd2; color: #c62828; }
-        .historico {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            padding: 20px;
-        }
-        .linha {
-            border-bottom: 1px solid #ddd;
-            padding: 10px 0;
-        }
-        .linha:last-child { border-bottom: none; }
-        .excluir-form {
-            display: inline-block;
-            margin-left: 10px;
-        }
-        .voltar {
-            margin-top: 10px;
-            background: #999;
-        }
-        .voltar:hover { background: #777; }
-    </style>
-    <script>
-        function alternarAbas(aba) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('aba', aba);
-            window.location.href = url.toString();
-        }
-
-        function mostrarSubopcoes() {
-            const tipo = document.getElementById("tipo").value;
-            const subopcoes = document.getElementById("subopcoes");
-            const outrosCampo = document.getElementById("outrosCampo");
-
-            if (tipo === "Qualidade da Água") {
-                subopcoes.style.display = "block";
-            } else {
-                subopcoes.style.display = "none";
-                outrosCampo.style.display = "none";
-            }
-        }
-
-        function verificarOutros(valor) {
-            const outrosCampo = document.getElementById("outrosCampo");
-            if (valor === "Outros") {
-                outrosCampo.style.display = "block";
-            } else {
-                outrosCampo.style.display = "none";
-            }
-        }
-    </script>
+  <meta charset="utf-8">
+  <title>Denúncias - Vigiagua</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+    .wrap { max-width:1100px; margin:0 auto; }
+    header { display:flex; align-items:center; justify-content:space-between; background:#004d66; color:#fff; padding:10px 20px; border-radius:8px; }
+    header img { height:50px; }
+    h1 { text-align:center; color:#004d66; margin:18px 0; }
+    .tabs { display:flex; gap:8px; justify-content:center; margin-bottom:18px; }
+    .tab { padding:10px 18px; background:#e0e0e0; border-radius:8px; text-decoration:none; color:#333; font-weight:600; }
+    .tab.active { background:#004d66; color:#fff; }
+    .card { background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+    label { display:block; margin-top:12px; font-weight:600; }
+    input, select, textarea, button { width:100%; padding:10px; margin-top:6px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box; }
+    button { background:#0078d7; color:#fff; border:none; font-weight:700; cursor:pointer; }
+    .flash { max-width:900px; margin:14px auto; padding:12px; border-radius:8px; font-weight:700; text-align:center; }
+    .flash.sucesso { background:#d1e7dd; color:#0f5132; border:1px solid #badbcc; }
+    .flash.erro { background:#f8d7da; color:#721c24; border:1px solid #f5c2c7; }
+    table { width:100%; border-collapse:collapse; margin-top:16px; }
+    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; font-size:14px; }
+    th { background:#004d66; color:#fff; }
+    .btn-excluir { background:#dc3545; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    .small { width:auto; display:inline-block; }
+    .actions { display:flex; gap:8px; align-items:center; }
+    .hint { font-size:13px; color:#666; margin-top:6px; }
+    .top-actions { display:flex; gap:10px; justify-content:flex-end; margin-bottom:10px; }
+    .export { background:#555; color:#fff; padding:8px 12px; border-radius:8px; text-decoration:none; }
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <img src="{{ url_for('static', filename='logo1.png') }}" alt="logo1" onerror="this.style.display='none'">
+      <div style="text-align:center;">
+        <h2 style="margin:0">Vigiagua</h2>
+        <small>Registro de Denúncias</small>
+      </div>
+      <img src="{{ url_for('static', filename='logo2.png') }}" alt="logo2" onerror="this.style.display='none'">
+    </header>
 
-<header>
-    <img src="{{ url_for('static', filename='logo1.png') }}" alt="Logo 1">
-    <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
-</header>
-
-<div class="container">
-    <h1>Registro de Denúncias - Vigiagua</h1>
-
-    <div class="tabs">
-        <div class="tab {% if aba == 'formulario' %}active{% endif %}" onclick="alternarAbas('formulario')">Denúncias</div>
-        <div class="tab {% if aba == 'historico' %}active{% endif %}" onclick="alternarAbas('historico')">Histórico</div>
+    <div style="text-align:center; margin-top:14px;">
+      <a class="tab {{ 'active' if aba == 'denuncias' else '' }}" href="{{ url_for('index', aba='denuncias') }}">Denúncias</a>
+      <a class="tab {{ 'active' if aba == 'historico' else '' }}" href="{{ url_for('index', aba='historico') }}">Histórico</a>
     </div>
 
-    {% if aba == 'formulario' %}
-    <form method="POST">
-        <label for="denunciante">Denunciante</label>
-        <input type="text" id="denunciante" name="denunciante" required>
-
-        <label for="email">E-mail</label>
-        <input type="email" id="email" name="email">
-
-        <label for="telefone">Telefone</label>
-        <input type="text" id="telefone" name="telefone">
-
-        <label for="tipo">Tipo de Denúncia</label>
-        <select id="tipo" name="tipo" onchange="mostrarSubopcoes()" required>
-            <option value="">Selecione</option>
-            <option value="Qualidade da Água">Qualidade da Água</option>
-            <option value="Falta de Abastecimento">Falta de Abastecimento</option>
-            <option value="Intermitência">Intermitência</option>
-            <option value="Outros">Outros</option>
-        </select>
-
-        <div id="subopcoes" style="display:none;">
-            <label for="subtipo">Selecione o tipo de problema</label>
-            <select id="subtipo" name="subtipo" onchange="verificarOutros(this.value)">
-                <option value="">Selecione</option>
-                <option value="Cor Anormal">Cor Anormal</option>
-                <option value="Odor Estranho">Odor Estranho</option>
-                <option value="Sabor Incomum">Sabor Incomum</option>
-                <option value="Presença de Substâncias Estranhas">Presença de Substâncias Estranhas</option>
-                <option value="Espuma ou Resíduos">Espuma ou Resíduos</option>
-                <option value="Outros">Outros</option>
-            </select>
-
-            <div id="outrosCampo" style="display:none;">
-                <label for="descricao">Descrição do problema</label>
-                <textarea id="descricao" name="descricao" rows="3" placeholder="Descreva o problema..."></textarea>
-            </div>
-        </div>
-
-        <label for="local">Local</label>
-        <input type="text" id="local" name="local" required>
-
-        <label for="endereco">Endereço</label>
-        <input type="text" id="endereco" name="endereco" required>
-
-        <button type="submit">Registrar Denúncia</button>
-    </form>
-    {% endif %}
-
-    {% if aba == 'historico' %}
-    <div class="historico">
-        <h2>Histórico de Denúncias</h2>
-        {% for item in historico %}
-        <div class="linha">
-            <strong>{{ item["Nº Protocolo"] }}</strong> - {{ item["Data Denúncia"] }}<br>
-            {{ item["Tipo Denúncia"] }} - {{ item["Local"] }}<br>
-            <form method="POST" action="/excluir" class="excluir-form">
-                <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
-                <input type="password" name="senha" placeholder="Senha de exclusão" required>
-                <button type="submit">Excluir</button>
-            </form>
-        </div>
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        {% for categoria, msg in mensagens %}
+          <div class="flash {{ categoria }}">{{ msg }}</div>
         {% endfor %}
-        <a href="/?aba=formulario"><button class="voltar">Voltar</button></a>
-    </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- ABA: Denúncias -->
+    {% if aba == 'denuncias' %}
+      <div class="card">
+        <h1 style="font-size:18px;margin:0 0 10px 0">Registrar Denúncia</h1>
+        <form method="POST" action="{{ url_for('index') }}">
+          <label>Denunciante *</label>
+          <input name="denunciante" required>
+
+          <label>E-mail</label>
+          <input name="email" type="email">
+
+          <label>Telefone</label>
+          <input name="telefone">
+
+          <label>Tipo de Denúncia *</label>
+          <select id="tipo" name="tipo" required>
+            <option value="">Selecione</option>
+            <option>Qualidade da Água</option>
+            <option>Abastecimento</option>
+            <option>Rede / Vazamento</option>
+            <option>Outros</option>
+          </select>
+
+          <div id="qualidadeBox" style="display:none;">
+            <label>Tipo de Problema</label>
+            <select id="tipo_problema" name="tipo_problema">
+              <option value="">Selecione</option>
+              <option>Cor Anormal</option>
+              <option>Odor Estranho</option>
+              <option>Sabor Incomum</option>
+              <option>Presença de Substâncias Estranhas</option>
+              <option>Espuma ou Resíduos</option>
+              <option>Outros</option>
+            </select>
+            <div id="outroBox" style="display:none;">
+              <label>Descreva (outros)</label>
+              <input name="outro_problema" id="outro_problema">
+            </div>
+          </div>
+
+          <label>Local *</label>
+          <input name="local" required>
+
+          <label>Endereço *</label>
+          <input name="endereco" required>
+
+          <label>Descrição</label>
+          <textarea name="descricao" rows="3"></textarea>
+
+          <div style="margin-top:10px;">
+            <button type="submit">Registrar</button>
+          </div>
+        </form>
+      </div>
     {% endif %}
-</div>
+
+    <!-- ABA: Histórico -->
+    {% if aba == 'historico' %}
+      <div class="card">
+        <div class="top-actions">
+          <a class="export" href="{{ url_for('exportar_pdf') }}">Exportar PDF</a>
+        </div>
+
+        <h1 style="font-size:18px;margin:0 0 10px 0">Histórico</h1>
+
+        {% if historico and historico|length > 0 %}
+          <table>
+            <thead>
+              <tr>
+                <th>Protocolo</th><th>Data</th><th>Denunciante</th><th>Tipo</th><th>Problema</th><th>Local</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in historico|reverse %}
+                <tr>
+                  <td>{{ item["Nº Protocolo"] }}</td>
+                  <td>{{ item["Data Denúncia"] }}</td>
+                  <td>{{ item["Denunciante"] }}</td>
+                  <td>{{ item["Tipo Denúncia"] }}</td>
+                  <td>{{ item.get("Tipo Problema","") }}</td>
+                  <td>{{ item["Local"] }}</td>
+                  <td>
+                    <form method="POST" action="{{ url_for('excluir') }}" style="display:flex; gap:6px; align-items:center;">
+                      <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
+                      <input type="password" name="senha" placeholder="Senha" required class="small">
+                      <button class="btn-excluir" type="submit">Excluir</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="hint">Nenhuma denúncia encontrada.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    // comportamento dinâmico do formulário
+    const tipo = document.getElementById('tipo');
+    const qualidadeBox = document.getElementById('qualidadeBox');
+    const tipoProblema = document.getElementById('tipo_problema');
+    const outroBox = document.getElementById('outroBox');
+
+    if (tipo) {
+      tipo.addEventListener('change', () => {
+        if (tipo.value === 'Qualidade da Água') {
+          qualidadeBox.style.display = 'block';
+        } else {
+          qualidadeBox.style.display = 'none';
+          outroBox.style.display = 'none';
+          if (tipoProblema) tipoProblema.value = '';
+        }
+      });
+    }
+    if (tipoProblema) {
+      tipoProblema.addEventListener('change', () => {
+        if (tipoProblema.value === 'Outros') {
+          outroBox.style.display = 'block';
+        } else {
+          outroBox.style.display = 'none';
+        }
+      });
+    }
+  </script>
 </body>
 </html>
