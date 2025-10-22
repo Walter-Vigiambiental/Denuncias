@@ -1,149 +1,164 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-import json
-import os
+from flask import Flask, render_template, request, redirect, url_for
+from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
-from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+import os
+import csv
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+app = Flask(__name__)
 
-HISTORICO_ARQUIVO = "historico.json"
-CONFIG_EMAIL = "config_email.json"
-SENHA_ADMIN = "1234"  # ✅ altere para sua senha real
+# Caminho do arquivo CSV de histórico
+CSV_FILE = "historico.csv"
 
-# --- Funções auxiliares ---
-def carregar_historico():
-    if not os.path.exists(HISTORICO_ARQUIVO):
-        return []
-    with open(HISTORICO_ARQUIVO, "r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return []
+# Configuração do servidor SMTP
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+EMAIL_USER = os.getenv("EMAIL_USER", "seuemail@gmail.com")
+EMAIL_PASS = os.getenv("EMAIL_PASS", "suasenha")
 
-def salvar_historico(data):
-    with open(HISTORICO_ARQUIVO, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+# Senha para exclusão
+SENHA_EXCLUSAO = os.getenv("SENHA_EXCLUSAO", "1234")
 
-def enviar_email(destinatario, assunto, mensagem):
+# ============================
+# Funções auxiliares
+# ============================
+
+def enviar_email(assunto, mensagem):
+    """Envia e-mail com os dados da denúncia."""
     try:
-        with open(CONFIG_EMAIL, "r", encoding="utf-8") as f:
-            config = json.load(f)
-
-        remetente = config["email"]
-        senha = config["senha"]
-        smtp_servidor = config["smtp_servidor"]
-        smtp_porta = config["smtp_porta"]
-
-        msg = MIMEText(mensagem, "html", "utf-8")
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_USER
+        msg["To"] = EMAIL_USER
         msg["Subject"] = assunto
-        msg["From"] = remetente
-        msg["To"] = destinatario
+        msg.attach(MIMEText(mensagem, "plain", "utf-8"))
 
-        with smtplib.SMTP(smtp_servidor, smtp_porta) as server:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
-            server.login(remetente, senha)
+            server.login(EMAIL_USER, EMAIL_PASS)
             server.send_message(msg)
-        print("✅ E-mail enviado com sucesso!")
         return True
     except Exception as e:
-        print("❌ Erro ao enviar e-mail:", e)
+        print("Erro ao enviar e-mail:", e)
         return False
 
 
-# --- Rotas principais ---
+def salvar_historico(dados):
+    """Salva denúncia em CSV."""
+    header = [
+        "Data", "Usuário", "Tipo de Denúncia", "Tipo de Problema",
+        "Outro Problema", "Local", "Endereço", "Descrição"
+    ]
+    arquivo_existe = os.path.isfile(CSV_FILE)
+
+    with open(CSV_FILE, mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=header)
+        if not arquivo_existe:
+            writer.writeheader()
+        writer.writerow(dados)
+
+
+def ler_historico():
+    """Lê as denúncias do CSV."""
+    if not os.path.exists(CSV_FILE):
+        return []
+    with open(CSV_FILE, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+def limpar_historico():
+    """Limpa todas as denúncias."""
+    if os.path.exists(CSV_FILE):
+        os.remove(CSV_FILE)
+
+
+# ============================
+# Rotas
+# ============================
+
 @app.route("/", methods=["GET", "POST"])
-def formulario():
+def index():
     mensagem = None
-    tipo = None
+    tipo_mensagem = None
 
     if request.method == "POST":
         usuario = request.form.get("usuario")
+        tipo_denuncia = request.form.get("tipo_denuncia")
+        tipo_problema = request.form.get("tipo_problema")
+        outro_problema = request.form.get("outro_problema")
         local = request.form.get("local")
+        endereco = request.form.get("endereco")
         descricao = request.form.get("descricao")
-        risco = request.form.get("risco")
+        senha = request.form.get("senha_exclusao")
 
-        if not all([usuario, local, descricao, risco]):
-            mensagem = "Preencha todos os campos!"
-            tipo = "erro"
+        # Verifica se é exclusão
+        if senha:
+            if senha == SENHA_EXCLUSAO:
+                limpar_historico()
+                mensagem = "Histórico de denúncias apagado com sucesso."
+                tipo_mensagem = "sucesso"
+            else:
+                mensagem = "Senha incorreta. Nenhuma denúncia foi apagada."
+                tipo_mensagem = "erro"
+            return render_template("formulario.html", mensagem=mensagem, tipo_mensagem=tipo_mensagem)
+
+        # Monta tipo de problema, se aplicável
+        if tipo_denuncia == "Qualidade da Água":
+            if tipo_problema == "Outros":
+                tipo_problema = outro_problema or "Não especificado"
         else:
-            novo_registro = {
-                "usuario": usuario,
-                "local": local,
-                "descricao": descricao,
-                "risco": risco,
-                "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            }
+            tipo_problema = ""
 
-            historico = carregar_historico()
-            historico.append(novo_registro)
-            salvar_historico(historico)
+        data = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-            # envia o e-mail
-            enviar_email(
-                destinatario="destino@exemplo.com",  # altere conforme necessário
-                assunto="Nova denúncia registrada",
-                mensagem=f"""
-                <h3>Nova denúncia registrada</h3>
-                <b>Usuário:</b> {usuario}<br>
-                <b>Local:</b> {local}<br>
-                <b>Descrição:</b> {descricao}<br>
-                <b>Risco:</b> {risco}<br>
-                <b>Data:</b> {novo_registro['data']}
-                """
-            )
+        # Cria registro
+        denuncia = {
+            "Data": data,
+            "Usuário": usuario,
+            "Tipo de Denúncia": tipo_denuncia,
+            "Tipo de Problema": tipo_problema,
+            "Outro Problema": outro_problema,
+            "Local": local,
+            "Endereço": endereco,
+            "Descrição": descricao
+        }
 
-            mensagem = "Denúncia registrada com sucesso!"
-            tipo = "sucesso"
+        # Salva localmente
+        salvar_historico(denuncia)
 
-    return render_template("formulario.html", mensagem=mensagem, tipo=tipo)
+        # Envia por e-mail
+        assunto = f"Nova Denúncia - {tipo_denuncia}"
+        corpo_email = (
+            f"🕒 Data: {data}\n"
+            f"👤 Usuário: {usuario}\n"
+            f"📍 Local: {local}\n"
+            f"🏠 Endereço: {endereco}\n"
+            f"📢 Tipo de Denúncia: {tipo_denuncia}\n"
+        )
+        if tipo_problema:
+            corpo_email += f"⚠️ Tipo de Problema: {tipo_problema}\n"
+        corpo_email += f"📝 Descrição:\n{descricao}"
+
+        if enviar_email(assunto, corpo_email):
+            mensagem = "Denúncia registrada e enviada com sucesso!"
+            tipo_mensagem = "sucesso"
+        else:
+            mensagem = "Denúncia registrada, mas ocorreu um erro ao enviar o e-mail."
+            tipo_mensagem = "erro"
+
+    return render_template("formulario.html", mensagem=mensagem, tipo_mensagem=tipo_mensagem)
 
 
-@app.route("/historico", methods=["GET", "POST"])
+@app.route("/historico")
 def historico():
-    mensagem = None
-    tipo = None
-    senha = request.form.get("senha") if request.method == "POST" else None
-
-    if senha:
-        if senha != SENHA_ADMIN:
-            mensagem = "Senha incorreta! Tente novamente."
-            tipo = "erro"
-            return render_template("formulario.html", mensagem=mensagem, tipo=tipo)
-        else:
-            historico = carregar_historico()
-            return render_template("historico.html", historico=historico)
-
-    # tela inicial da senha
-    return """
-    <html>
-    <body style='font-family:Segoe UI; text-align:center; margin-top:100px;'>
-        <h2>🔒 Acesso ao Histórico</h2>
-        <form method='POST'>
-            <input type='password' name='senha' placeholder='Digite a senha' required>
-            <br><br>
-            <button type='submit'>Entrar</button>
-            <br><br>
-            <a href='/' style='text-decoration:none; color:#0078D7;'>← Voltar</a>
-        </form>
-    </body>
-    </html>
-    """
+    denuncias = ler_historico()
+    return render_template("historico.html", denuncias=denuncias)
 
 
-@app.route("/excluir/<int:index>", methods=["POST"])
-def excluir(index):
-    historico = carregar_historico()
-    if 0 <= index < len(historico):
-        historico.pop(index)
-        salvar_historico(historico)
-    return redirect(url_for("historico"))
-
-
-@app.route("/api/historico")
-def api_historico():
-    return jsonify(carregar_historico())
-
+# ============================
+# Execução
+# ============================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=8080)
