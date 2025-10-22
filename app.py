@@ -3,28 +3,25 @@ import json
 import threading
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
-import smtplib
-from email.message import EmailMessage
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+import requests  # usado para enviar e-mail via Resend API
 
 # -------------------------
 # Configurações
 # -------------------------
 HISTORICO_PATH = os.environ.get("HISTORICO_PATH", "historico.json")
-SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))  # Porta 587 (STARTTLS)
-EMAIL_USER = os.environ.get("EMAIL_USER")
-EMAIL_PASS = os.environ.get("EMAIL_PASS")
 SENHA_EXCLUSAO = os.environ.get("SENHA_EXCLUSAO", "minhasenha123")
 FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "re_j8zp6WGE_6ErTGGiEZ7D8RnKm5UF53euf")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")  # chave do resend
 
 # -------------------------
 # App init
 # -------------------------
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = FLASK_SECRET_KEY
+
 
 # -------------------------
 # Helpers: JSON I/O
@@ -41,6 +38,7 @@ def _carregar_historico():
         print("Erro ao carregar histórico:", e)
         return []
 
+
 def _salvar_historico(lista):
     try:
         with open(HISTORICO_PATH, "w", encoding="utf-8") as f:
@@ -50,58 +48,55 @@ def _salvar_historico(lista):
         print("Erro ao salvar histórico:", e)
         return False
 
+
 def gerar_protocolo():
     return f"PROTO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
+
 # -------------------------
-# Helper: enviar e-mail (threaded)
+# Envio de e-mail via Resend API
 # -------------------------
-def _envia_email_sync(destino, assunto, corpo, anexos_paths=None):
-    if not EMAIL_USER or not EMAIL_PASS:
-        print("❌ Variáveis de e-mail não configuradas; e-mail não será enviado.")
+def _envia_email_sync(destino, assunto, corpo):
+    if not RESEND_API_KEY:
+        print("❌ RESEND_API_KEY não configurada.")
         return False
 
     try:
-        msg = EmailMessage()
-        msg["From"] = EMAIL_USER
-        msg["To"] = destino
-        msg["Subject"] = assunto
-        msg.set_content(corpo)
+        payload = {
+            "from": "Denúncias Vigiagua <denuncias@resend.dev>",
+            "to": [destino],
+            "subject": assunto,
+            "text": corpo
+        }
 
-        # anexos opcionais
-        if anexos_paths:
-            for p in anexos_paths:
-                try:
-                    with open(p, "rb") as af:
-                        data = af.read()
-                        filename = os.path.basename(p)
-                        msg.add_attachment(data, maintype="application", subtype="octet-stream", filename=filename)
-                except Exception as e:
-                    print("Falha ao anexar", p, e)
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json=payload
+        )
 
-        # conexão segura STARTTLS
-        print("DEBUG SMTP:", SMTP_SERVER, SMTP_PORT, EMAIL_USER)
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=25) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
-            smtp.login(EMAIL_USER, EMAIL_PASS)
-            smtp.send_message(msg)
-
-        print(f"✅ E-mail enviado com sucesso para {destino}")
-        return True
+        if response.status_code == 200:
+            print(f"✅ E-mail enviado com sucesso via Resend para {destino}")
+            return True
+        else:
+            print(f"❌ Erro Resend: {response.status_code} - {response.text}")
+            return False
 
     except Exception as e:
-        print("❌ Erro no envio de e-mail:", e)
+        print("❌ Falha ao enviar e-mail via Resend:", e)
         return False
 
 
-def envia_email_background(destino, assunto, corpo, anexos_paths=None):
-    thread = threading.Thread(target=_envia_email_sync, args=(destino, assunto, corpo, anexos_paths), daemon=True)
+def envia_email_background(destino, assunto, corpo):
+    thread = threading.Thread(target=_envia_email_sync, args=(destino, assunto, corpo), daemon=True)
     thread.start()
 
+
 # -------------------------
-# Rotas
+# Rotas principais
 # -------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -129,7 +124,7 @@ def index():
         else:
             problema_final = ""
 
-        # validação
+        # validação mínima
         if not denunciante or not tipo or not local or not endereco:
             flash("Preencha os campos obrigatórios (Denunciante, Tipo, Local e Endereço).", "erro")
             return redirect(url_for("index", aba="denuncias"))
@@ -154,17 +149,7 @@ def index():
             flash("Erro ao salvar o registro. Verifique permissões de disco.", "erro")
             return redirect(url_for("index", aba="denuncias"))
 
-        # gerar relatório temporário
-        rel_path = None
-        try:
-            rel_path = f"/tmp/relatorio_{registro['Nº Protocolo']}.txt"
-            with open(rel_path, "w", encoding="utf-8") as rf:
-                for k, v in registro.items():
-                    rf.write(f"{k}: {v}\n")
-        except Exception as e:
-            print("Não foi possível criar relatorio:", e)
-
-        # enviar e-mail
+        # enviar e-mail (assíncrono)
         assunto = f"Denúncia registrada: {registro['Nº Protocolo']}"
         corpo = (
             f"Protocolo: {registro['Nº Protocolo']}\n"
@@ -178,11 +163,8 @@ def index():
             f"Telefone: {registro['Telefone Contato']}\n"
         )
 
-        destinatario = email_usuario if email_usuario else EMAIL_USER
-        if destinatario:
-            envia_email_background(destinatario, assunto, corpo, anexos_paths=[rel_path] if rel_path else None)
-        else:
-            print("⚠️ Nenhum destinatário definido para envio de e-mail.")
+        destinatario = email_usuario if email_usuario else "denuncias@resend.dev"
+        envia_email_background(destinatario, assunto, corpo)
 
         flash("Denúncia registrada com sucesso.", "sucesso")
         return redirect(url_for("index", aba="historico"))
@@ -255,4 +237,7 @@ def exportar_pdf():
 # -------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+
+
 
