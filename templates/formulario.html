@@ -2,21 +2,26 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Histórico de Denúncias - Vigiagua</title>
+    <title>Registro de Denúncias - Vigiagua</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='static_style.css') }}">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background-color: #f4f6f8;
-            padding: 20px;
+            margin: 0;
+            padding: 30px;
         }
         .container {
-            background: #fff;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
             max-width: 900px;
             margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
         }
         .logos {
             display: flex;
@@ -27,18 +32,48 @@
         .logos img {
             height: 60px;
         }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
         }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0078D7;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #005fa3;
+        }
+        .mensagem {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .mensagem.erro { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
+        .mensagem.sucesso { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
+        .mensagem.alerta { background: #fff3cd; color: #664d03; border: 1px solid #ffecb5; }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 25px;
         }
         th, td {
-            padding: 10px;
-            text-align: left;
+            padding: 8px;
             border-bottom: 1px solid #ddd;
         }
         th {
@@ -46,7 +81,7 @@
             color: white;
         }
         tr:hover {
-            background-color: #f1f1f1;
+            background-color: #f9f9f9;
         }
         .btn-excluir {
             background-color: #dc3545;
@@ -60,28 +95,18 @@
             background-color: #b02a37;
         }
         .btn-voltar {
+            display: block;
+            margin: 20px auto 0;
             background-color: #555;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 8px;
             cursor: pointer;
-            display: block;
-            margin: 25px auto 0;
         }
         .btn-voltar:hover {
             background-color: #333;
         }
-        .risco {
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 6px;
-            color: #fff;
-        }
-        .risco.Alto { background-color: #e74c3c; }
-        .risco.Médio { background-color: #f39c12; }
-        .risco.Baixo { background-color: #27ae60; }
-        .risco.Indefinido { background-color: #7f8c8d; }
     </style>
 </head>
 <body>
@@ -91,39 +116,80 @@
             <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
         </div>
 
-        <h1>Histórico de Denúncias</h1>
+        <h1>Registro de Denúncias - Vigiagua</h1>
 
-        {% if historico and historico|length > 0 %}
+        <!-- MENSAGENS -->
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+          {% if mensagens %}
+            {% for categoria, mensagem in mensagens %}
+              <div class="mensagem {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- FORMULÁRIO -->
+        <form method="POST" action="/">
+            <label for="denunciante">Denunciante:</label>
+            <input type="text" name="denunciante" required>
+
+            <label for="email">E-mail:</label>
+            <input type="email" name="email">
+
+            <label for="telefone">Telefone de Contato:</label>
+            <input type="text" name="telefone">
+
+            <label for="tipo">Tipo de Denúncia:</label>
+            <select name="tipo" required>
+                <option value="">Selecione</option>
+                <option>Água</option>
+                <option>Resíduos</option>
+                <option>Esgoto</option>
+                <option>Outros</option>
+            </select>
+
+            <label for="local">Local:</label>
+            <input type="text" name="local" required>
+
+            <label for="endereco">Endereço:</label>
+            <textarea name="endereco" rows="3"></textarea>
+
+            <button type="submit">Registrar Denúncia</button>
+        </form>
+
+        <!-- HISTÓRICO -->
+        <h2 style="margin-top: 40px;">Histórico de Denúncias</h2>
+        {% if historico %}
         <table>
-            <thead>
-                <tr>
-                    <th>Data</th>
-                    <th>Usuário</th>
-                    <th>Local</th>
-                    <th>Descrição</th>
-                    <th>Risco</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for i, item in enumerate(historico) %}
-                <tr>
-                    <td>{{ item.data }}</td>
-                    <td>{{ item.usuario }}</td>
-                    <td>{{ item.local }}</td>
-                    <td>{{ item.descricao }}</td>
-                    <td><span class="risco {{ item.risco }}">{{ item.risco }}</span></td>
-                    <td>
-                        <form action="{{ url_for('excluir', index=i) }}" method="POST" style="display:inline;">
-                            <button class="btn-excluir" type="submit">Excluir</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
+            <tr>
+                <th>Protocolo</th>
+                <th>Data</th>
+                <th>Denunciante</th>
+                <th>Tipo</th>
+                <th>Local</th>
+                <th>Ações</th>
+            </tr>
+            {% for item in historico %}
+            <tr>
+                <td>{{ item["Nº Protocolo"] }}</td>
+                <td>{{ item["Data Denúncia"] }}</td>
+                <td>{{ item["Denunciante"] }}</td>
+                <td>{{ item["Tipo Denúncia"] }}</td>
+                <td>{{ item["Local"] }}</td>
+                <td>
+                    <form method="POST" action="/excluir" style="display:inline;">
+                        <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
+                        <input type="password" name="senha" placeholder="Senha" required style="padding:4px; border-radius:6px; border:1px solid #ccc;">
+                        <label style="font-size:12px; color:#555;">
+                            <input type="checkbox" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'"> Mostrar
+                        </label>
+                        <button type="submit" class="btn-excluir">Excluir</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
         </table>
         {% else %}
-            <p style="text-align:center; color:#555; margin-top:20px;">Nenhuma denúncia registrada.</p>
+            <p style="text-align:center; color:#555;">Nenhuma denúncia registrada ainda.</p>
         {% endif %}
 
         <form action="/" method="get">
