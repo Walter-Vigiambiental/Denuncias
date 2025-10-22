@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Denúncias - Vigiagua</title>
+    <title>Histórico de Denúncias - Vigiagua</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='static_style.css') }}">
     <style>
         body {
@@ -15,14 +15,14 @@
             border-radius: 12px;
             padding: 30px;
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            max-width: 800px;
+            max-width: 900px;
             margin: auto;
         }
         .logos {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .logos img {
             height: 60px;
@@ -31,57 +31,57 @@
             text-align: center;
             color: #2c3e50;
         }
-        label {
-            display: block;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        input, textarea, select {
+        table {
             width: 100%;
-            padding: 8px;
-            margin-top: 5px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            background-color: #0078D7;
-            color: #fff;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #005fa3;
-        }
-        .mensagem {
-            margin-top: 15px;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .mensagem.sucesso {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .mensagem.erro {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .mensagem.alerta {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .voltar {
-            background-color: #555;
+            border-collapse: collapse;
             margin-top: 20px;
         }
-        .voltar:hover {
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #0078D7;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-excluir {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-excluir:hover {
+            background-color: #b02a37;
+        }
+        .btn-voltar {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: block;
+            margin: 25px auto 0;
+        }
+        .btn-voltar:hover {
             background-color: #333;
         }
+        .risco {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #fff;
+        }
+        .risco.Alto { background-color: #e74c3c; }
+        .risco.Médio { background-color: #f39c12; }
+        .risco.Baixo { background-color: #27ae60; }
+        .risco.Indefinido { background-color: #7f8c8d; }
     </style>
 </head>
 <body>
@@ -91,36 +91,43 @@
             <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
         </div>
 
-        <h1>Registro de Denúncia</h1>
+        <h1>Histórico de Denúncias</h1>
 
-        <form method="POST" action="/">
-            <label for="usuario">Usuário:</label>
-            <input type="text" id="usuario" name="usuario" required>
-
-            <label for="local">Local:</label>
-            <input type="text" id="local" name="local" required>
-
-            <label for="descricao">Descrição da Denúncia:</label>
-            <textarea id="descricao" name="descricao" rows="4" required></textarea>
-
-            <label for="risco">Risco:</label>
-            <select id="risco" name="risco" required>
-                <option value="Baixo">Baixo</option>
-                <option value="Médio">Médio</option>
-                <option value="Alto">Alto</option>
-            </select>
-
-            <button type="submit">Registrar Denúncia</button>
-        </form>
-
-        {% if mensagem %}
-            <div class="mensagem {{ tipo }}">
-                {{ mensagem }}
-            </div>
+        {% if historico and historico|length > 0 %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Usuário</th>
+                    <th>Local</th>
+                    <th>Descrição</th>
+                    <th>Risco</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, item in enumerate(historico) %}
+                <tr>
+                    <td>{{ item.data }}</td>
+                    <td>{{ item.usuario }}</td>
+                    <td>{{ item.local }}</td>
+                    <td>{{ item.descricao }}</td>
+                    <td><span class="risco {{ item.risco }}">{{ item.risco }}</span></td>
+                    <td>
+                        <form action="{{ url_for('excluir', index=i) }}" method="POST" style="display:inline;">
+                            <button class="btn-excluir" type="submit">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p style="text-align:center; color:#555; margin-top:20px;">Nenhuma denúncia registrada.</p>
         {% endif %}
 
-        <form action="/?aba=historico" method="get">
-            <button type="submit" class="voltar">Voltar</button>
+        <form action="/" method="get">
+            <button type="submit" class="btn-voltar">Voltar</button>
         </form>
     </div>
 </body>
