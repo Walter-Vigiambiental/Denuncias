@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, redirect, send_file
-import json, os, threading
+from flask import Flask, render_template, request, redirect, send_file, flash, url_for
+import json, os
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
@@ -7,26 +7,29 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from io import BytesIO
 
+# Inicialização do app Flask
 app = Flask(__name__)
+app.secret_key = "chave_super_segura"  # Necessário para usar flash()
 
-# Caminho de gravação seguro no Render
-HISTORICO_PATH = "/tmp/historico.json"
-
-# Configurações fixas
+# Configurações principais
+HISTORICO_PATH = "historico.json"
 SENHA_EXCLUSAO = "minhasenha123"
 EMAIL_LABORATORIO = "laboraguamoc@yahoo.com"
 
-# -------------------------------------------------------
+# --------------------------
 # Funções auxiliares
-# -------------------------------------------------------
+# --------------------------
 
 def gerar_protocolo():
     return f"PROTO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
 def carregar_historico():
     if os.path.exists(HISTORICO_PATH):
-        with open(HISTORICO_PATH, "r") as f:
-            return json.load(f)
+        try:
+            with open(HISTORICO_PATH, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return []
     return []
 
 def salvar_historico(dados):
@@ -36,49 +39,41 @@ def salvar_historico(dados):
         json.dump(historico, f, indent=4)
 
 def gerar_relatorio(dados):
-    nome_arquivo = f"/tmp/relatorio_{dados['Nº Protocolo']}.txt"
+    nome_arquivo = f"relatorio_{dados['Nº Protocolo']}.txt"
     with open(nome_arquivo, "w") as f:
         for chave, valor in dados.items():
             f.write(f"{chave}: {valor}\n")
     return nome_arquivo
 
 def enviar_email(dados, relatorio_path):
-    try:
-        config = {
-            "email": os.environ.get("EMAIL_REMETENTE"),
-            "senha": os.environ.get("EMAIL_SENHA")
-        }
+    config = {
+        "email": os.environ.get("EMAIL_REMETENTE"),
+        "senha": os.environ.get("EMAIL_SENHA")
+    }
 
-        if not config["email"] or not config["senha"]:
-            print("⚠️ Variáveis de ambiente de e-mail não configuradas. Ignorando envio.")
-            return
+    if not config["email"] or not config["senha"]:
+        print("⚠️ Variáveis de ambiente de e-mail não configuradas.")
+        return
 
-        msg = EmailMessage()
-        msg["Subject"] = f"Denúncia {dados['Nº Protocolo']}"
-        msg["From"] = config["email"]
-        msg["To"] = dados["E-mail"]
-        msg["Bcc"] = EMAIL_LABORATORIO
-        msg.set_content("Segue o relatório da denúncia registrada.")
+    msg = EmailMessage()
+    msg["Subject"] = f"Denúncia {dados['Nº Protocolo']}"
+    msg["From"] = config["email"]
+    msg["To"] = dados["E-mail"]
+    msg["Bcc"] = EMAIL_LABORATORIO
+    msg.set_content("Segue o relatório da denúncia registrada.")
 
-        with open(relatorio_path, "rb") as f:
-            msg.add_attachment(
-                f.read(),
-                maintype="application",
-                subtype="octet-stream",
-                filename=os.path.basename(relatorio_path)
-            )
+    with open(relatorio_path, "rb") as f:
+        file_data = f.read()
+        file_name = os.path.basename(relatorio_path)
+        msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as smtp:
-            smtp.login(config["email"], config["senha"])
-            smtp.send_message(msg)
-            print("✅ E-mail enviado com sucesso para:", dados["E-mail"])
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(config["email"], config["senha"])
+        smtp.send_message(msg)
 
-    except Exception as e:
-        print("❌ Erro ao enviar e-mail:", str(e))
-
-# -------------------------------------------------------
+# --------------------------
 # Rotas principais
-# -------------------------------------------------------
+# --------------------------
 
 @app.route("/", methods=["GET", "POST"])
 def formulario():
@@ -117,12 +112,19 @@ def formulario():
             salvar_historico(dados)
             relatorio = gerar_relatorio(dados)
 
-            # Envio assíncrono (não trava o app)
             if email_usuario:
-                threading.Thread(target=enviar_email, args=(dados, relatorio)).start()
+                try:
+                    enviar_email(dados, relatorio)
+                except Exception as e:
+                    print(f"Erro ao enviar e-mail: {e}")
 
-        return redirect("/")
+            flash("✅ Denúncia registrada com sucesso!", "sucesso")
+        else:
+            flash("⚠️ Denúncia duplicada! Já existe um registro com as mesmas informações.", "alerta")
 
+        return redirect(url_for("formulario", aba="historico"))
+
+    # Filtros
     mes = request.args.get("mes")
     ano = request.args.get("ano")
     aba = request.args.get("aba", "formulario")
@@ -147,9 +149,9 @@ def formulario():
         aba=aba
     )
 
-# -------------------------------------------------------
-# Exclusão de registros
-# -------------------------------------------------------
+# --------------------------
+# Exclusão segura
+# --------------------------
 
 @app.route("/excluir", methods=["POST"])
 def excluir():
@@ -157,23 +159,31 @@ def excluir():
     senha = request.form.get("senha")
 
     if senha != SENHA_EXCLUSAO:
-        return "Senha incorreta. Exclusão não autorizada.", 403
+        flash("❌ Senha incorreta. Exclusão não autorizada.", "erro")
+        return redirect(url_for("formulario", aba="historico"))
 
-    historico = carregar_historico()
+    historico = carregar_historico() or []
+
+    existe = any(d.get("Nº Protocolo") == protocolo for d in historico)
+    if not existe:
+        flash("⚠️ Protocolo não encontrado. Nenhum registro excluído.", "alerta")
+        return redirect(url_for("formulario", aba="historico"))
+
     novo_historico = [d for d in historico if d.get("Nº Protocolo") != protocolo]
-
     with open(HISTORICO_PATH, "w") as f:
         json.dump(novo_historico, f, indent=4)
 
-    return redirect("/?aba=historico")
+    flash(f"✅ Registro {protocolo} excluído com sucesso.", "sucesso")
+    return redirect(url_for("formulario", aba="historico"))
 
-# -------------------------------------------------------
-# Exportação PDF
-# -------------------------------------------------------
+# --------------------------
+# Exportar PDF
+# --------------------------
 
 @app.route("/exportar_pdf")
 def exportar_pdf():
     historico = carregar_historico()
+
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -188,10 +198,9 @@ def exportar_pdf():
         logo_height = 50
 
         if os.path.exists(logo1_path):
-            pdf.drawImage(logo1_path, x=20, y=logo_y, width=logo_width, height=logo_height, mask='auto')
-
+            pdf.drawImage(logo1_path, x=20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
         if os.path.exists(logo2_path):
-            pdf.drawImage(logo2_path, x=width - logo_width - 20, y=logo_y, width=logo_width, height=logo_height, mask='auto')
+            pdf.drawImage(logo2_path, x=width - logo_width - 20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
 
         pdf.setFont("Helvetica-Bold", 12)
         titulo = "Histórico de Denúncias"
@@ -236,9 +245,9 @@ def exportar_pdf():
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name="historico_denuncias.pdf", mimetype="application/pdf")
 
-# -------------------------------------------------------
-# Inicialização
-# -------------------------------------------------------
+# --------------------------
+# Execução local
+# --------------------------
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
