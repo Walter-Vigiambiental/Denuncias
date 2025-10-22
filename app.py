@@ -18,7 +18,7 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))  # Porta 587 (STARTTLS)
 EMAIL_USER = os.environ.get("EMAIL_USER")
 EMAIL_PASS = os.environ.get("EMAIL_PASS")
 SENHA_EXCLUSAO = os.environ.get("SENHA_EXCLUSAO", "minhasenha123")
-FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "troque_esta_chave")
+FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "re_j8zp6WGE_6ErTGGiEZ7D8RnKm5UF53euf")
 
 # -------------------------
 # App init
@@ -255,3 +255,4 @@ def exportar_pdf():
 # -------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
