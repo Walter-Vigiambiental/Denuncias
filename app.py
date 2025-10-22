@@ -1,253 +1,149 @@
-from flask import Flask, render_template, request, redirect, send_file, flash, url_for
-import json, os
-from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+import json
+import os
 import smtplib
-from email.message import EmailMessage
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from io import BytesIO
+from email.mime.text import MIMEText
+from datetime import datetime
 
-# Inicialização do app Flask
-app = Flask(__name__)
-app.secret_key = "chave_super_segura"  # Necessário para usar flash()
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
-# Configurações principais
-HISTORICO_PATH = "historico.json"
-SENHA_EXCLUSAO = "minhasenha123"
-EMAIL_LABORATORIO = "laboraguamoc@yahoo.com"
+HISTORICO_ARQUIVO = "historico.json"
+CONFIG_EMAIL = "config_email.json"
+SENHA_ADMIN = "1234"  # ✅ altere para sua senha real
 
-# --------------------------
-# Funções auxiliares
-# --------------------------
-
-def gerar_protocolo():
-    return f"PROTO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
+# --- Funções auxiliares ---
 def carregar_historico():
-    if os.path.exists(HISTORICO_PATH):
+    if not os.path.exists(HISTORICO_ARQUIVO):
+        return []
+    with open(HISTORICO_ARQUIVO, "r", encoding="utf-8") as f:
         try:
-            with open(HISTORICO_PATH, "r") as f:
-                return json.load(f)
+            return json.load(f)
         except json.JSONDecodeError:
             return []
-    return []
 
-def salvar_historico(dados):
-    historico = carregar_historico()
-    historico.append(dados)
-    with open(HISTORICO_PATH, "w") as f:
-        json.dump(historico, f, indent=4)
+def salvar_historico(data):
+    with open(HISTORICO_ARQUIVO, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-def gerar_relatorio(dados):
-    nome_arquivo = f"relatorio_{dados['Nº Protocolo']}.txt"
-    with open(nome_arquivo, "w") as f:
-        for chave, valor in dados.items():
-            f.write(f"{chave}: {valor}\n")
-    return nome_arquivo
+def enviar_email(destinatario, assunto, mensagem):
+    try:
+        with open(CONFIG_EMAIL, "r", encoding="utf-8") as f:
+            config = json.load(f)
 
-def enviar_email(dados, relatorio_path):
-    config = {
-        "email": os.environ.get("EMAIL_REMETENTE"),
-        "senha": os.environ.get("EMAIL_SENHA")
-    }
+        remetente = config["email"]
+        senha = config["senha"]
+        smtp_servidor = config["smtp_servidor"]
+        smtp_porta = config["smtp_porta"]
 
-    if not config["email"] or not config["senha"]:
-        print("⚠️ Variáveis de ambiente de e-mail não configuradas.")
-        return
+        msg = MIMEText(mensagem, "html", "utf-8")
+        msg["Subject"] = assunto
+        msg["From"] = remetente
+        msg["To"] = destinatario
 
-    msg = EmailMessage()
-    msg["Subject"] = f"Denúncia {dados['Nº Protocolo']}"
-    msg["From"] = config["email"]
-    msg["To"] = dados["E-mail"]
-    msg["Bcc"] = EMAIL_LABORATORIO
-    msg.set_content("Segue o relatório da denúncia registrada.")
+        with smtplib.SMTP(smtp_servidor, smtp_porta) as server:
+            server.starttls()
+            server.login(remetente, senha)
+            server.send_message(msg)
+        print("✅ E-mail enviado com sucesso!")
+        return True
+    except Exception as e:
+        print("❌ Erro ao enviar e-mail:", e)
+        return False
 
-    with open(relatorio_path, "rb") as f:
-        file_data = f.read()
-        file_name = os.path.basename(relatorio_path)
-        msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(config["email"], config["senha"])
-        smtp.send_message(msg)
-
-# --------------------------
-# Rotas principais
-# --------------------------
-
+# --- Rotas principais ---
 @app.route("/", methods=["GET", "POST"])
 def formulario():
-    historico = carregar_historico()
+    mensagem = None
+    tipo = None
 
     if request.method == "POST":
-        email_usuario = request.form.get("email", "").strip()
-        tipo = request.form.get("tipo", "").strip()
-        local = request.form.get("local", "").strip()
-        endereco = request.form.get("endereco", "").strip()
-        denunciante = request.form.get("denunciante", "").strip()
-        telefone = request.form.get("telefone", "").strip()
+        usuario = request.form.get("usuario")
+        local = request.form.get("local")
+        descricao = request.form.get("descricao")
+        risco = request.form.get("risco")
 
-        duplicada = any(
-            d.get("Denunciante", "") == denunciante and
-            d.get("Tipo Denúncia", "") == tipo and
-            d.get("Local", "") == local and
-            d.get("Endereço", "") == endereco and
-            d.get("E-mail", "") == email_usuario and
-            d.get("Telefone Contato", "") == telefone
-            for d in historico
-        )
-
-        if not duplicada:
-            dados = {
-                "Nº Protocolo": gerar_protocolo(),
-                "Data Denúncia": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Denunciante": denunciante,
-                "Tipo Denúncia": tipo,
-                "Local": local,
-                "Endereço": endereco,
-                "E-mail": email_usuario,
-                "Telefone Contato": telefone
+        if not all([usuario, local, descricao, risco]):
+            mensagem = "Preencha todos os campos!"
+            tipo = "erro"
+        else:
+            novo_registro = {
+                "usuario": usuario,
+                "local": local,
+                "descricao": descricao,
+                "risco": risco,
+                "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             }
 
-            salvar_historico(dados)
-            relatorio = gerar_relatorio(dados)
+            historico = carregar_historico()
+            historico.append(novo_registro)
+            salvar_historico(historico)
 
-            if email_usuario:
-                try:
-                    enviar_email(dados, relatorio)
-                except Exception as e:
-                    print(f"Erro ao enviar e-mail: {e}")
+            # envia o e-mail
+            enviar_email(
+                destinatario="destino@exemplo.com",  # altere conforme necessário
+                assunto="Nova denúncia registrada",
+                mensagem=f"""
+                <h3>Nova denúncia registrada</h3>
+                <b>Usuário:</b> {usuario}<br>
+                <b>Local:</b> {local}<br>
+                <b>Descrição:</b> {descricao}<br>
+                <b>Risco:</b> {risco}<br>
+                <b>Data:</b> {novo_registro['data']}
+                """
+            )
 
-            flash("✅ Denúncia registrada com sucesso!", "sucesso")
+            mensagem = "Denúncia registrada com sucesso!"
+            tipo = "sucesso"
+
+    return render_template("formulario.html", mensagem=mensagem, tipo=tipo)
+
+
+@app.route("/historico", methods=["GET", "POST"])
+def historico():
+    mensagem = None
+    tipo = None
+    senha = request.form.get("senha") if request.method == "POST" else None
+
+    if senha:
+        if senha != SENHA_ADMIN:
+            mensagem = "Senha incorreta! Tente novamente."
+            tipo = "erro"
+            return render_template("formulario.html", mensagem=mensagem, tipo=tipo)
         else:
-            flash("⚠️ Denúncia duplicada! Já existe um registro com as mesmas informações.", "alerta")
+            historico = carregar_historico()
+            return render_template("historico.html", historico=historico)
 
-        return redirect(url_for("formulario", aba="historico"))
+    # tela inicial da senha
+    return """
+    <html>
+    <body style='font-family:Segoe UI; text-align:center; margin-top:100px;'>
+        <h2>🔒 Acesso ao Histórico</h2>
+        <form method='POST'>
+            <input type='password' name='senha' placeholder='Digite a senha' required>
+            <br><br>
+            <button type='submit'>Entrar</button>
+            <br><br>
+            <a href='/' style='text-decoration:none; color:#0078D7;'>← Voltar</a>
+        </form>
+    </body>
+    </html>
+    """
 
-    # Filtros
-    mes = request.args.get("mes")
-    ano = request.args.get("ano")
-    aba = request.args.get("aba", "formulario")
 
-    historico_filtrado = []
-    for item in historico:
-        data = item.get("Data Denúncia", "")
-        partes = data.split("/")
-        if len(partes) < 3:
-            continue
-        item_mes = partes[1]
-        item_ano = partes[2].split(" ")[0]
-
-        if (not mes or item_mes == mes) and (not ano or item_ano == ano):
-            historico_filtrado.append(item)
-
-    return render_template(
-        "formulario.html",
-        historico=historico_filtrado,
-        historico_original=historico,
-        request=request,
-        aba=aba
-    )
-
-# --------------------------
-# Exclusão segura
-# --------------------------
-
-@app.route("/excluir", methods=["POST"])
-def excluir():
-    protocolo = request.form.get("protocolo")
-    senha = request.form.get("senha")
-
-    if senha != SENHA_EXCLUSAO:
-        flash("❌ Senha incorreta. Exclusão não autorizada.", "erro")
-        return redirect(url_for("formulario", aba="historico"))
-
-    historico = carregar_historico() or []
-
-    existe = any(d.get("Nº Protocolo") == protocolo for d in historico)
-    if not existe:
-        flash("⚠️ Protocolo não encontrado. Nenhum registro excluído.", "alerta")
-        return redirect(url_for("formulario", aba="historico"))
-
-    novo_historico = [d for d in historico if d.get("Nº Protocolo") != protocolo]
-    with open(HISTORICO_PATH, "w") as f:
-        json.dump(novo_historico, f, indent=4)
-
-    flash(f"✅ Registro {protocolo} excluído com sucesso.", "sucesso")
-    return redirect(url_for("formulario", aba="historico"))
-
-# --------------------------
-# Exportar PDF
-# --------------------------
-
-@app.route("/exportar_pdf")
-def exportar_pdf():
+@app.route("/excluir/<int:index>", methods=["POST"])
+def excluir(index):
     historico = carregar_historico()
+    if 0 <= index < len(historico):
+        historico.pop(index)
+        salvar_historico(historico)
+    return redirect(url_for("historico"))
 
-    buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    y = height - 120
 
-    logo1_path = "logo1.png"
-    logo2_path = "logo2.png"
+@app.route("/api/historico")
+def api_historico():
+    return jsonify(carregar_historico())
 
-    def desenhar_cabecalho():
-        logo_y = height - 70
-        logo_width = 100
-        logo_height = 50
-
-        if os.path.exists(logo1_path):
-            pdf.drawImage(logo1_path, x=20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
-        if os.path.exists(logo2_path):
-            pdf.drawImage(logo2_path, x=width - logo_width - 20, y=logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
-
-        pdf.setFont("Helvetica-Bold", 12)
-        titulo = "Histórico de Denúncias"
-        texto_largura = pdf.stringWidth(titulo, "Helvetica-Bold", 12)
-        centro_x = (width - texto_largura) / 2
-        pdf.drawString(centro_x, logo_y + 15, titulo)
-        pdf.setFont("Helvetica", 9)
-
-    desenhar_cabecalho()
-    y -= 30
-
-    for item in historico:
-        campos = [
-            f"Protocolo: {item.get('Nº Protocolo', '')}",
-            f"Data: {item.get('Data Denúncia', '')}",
-            f"Denunciante: {item.get('Denunciante', '')}",
-            f"Tipo: {item.get('Tipo Denúncia', '')}",
-            f"Local: {item.get('Local', '')}",
-            f"Endereço: {item.get('Endereço', '')}",
-            f"E-mail: {item.get('E-mail', '')}",
-            f"Telefone: {item.get('Telefone Contato', '')}"
-        ]
-
-        for linha in campos:
-            pdf.drawString(50, y, linha)
-            y -= 12
-            if y < 50:
-                pdf.showPage()
-                y = height - 120
-                desenhar_cabecalho()
-                y -= 30
-
-        pdf.drawString(50, y, "-" * 80)
-        y -= 15
-        if y < 50:
-            pdf.showPage()
-            y = height - 120
-            desenhar_cabecalho()
-            y -= 30
-
-    pdf.save()
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name="historico_denuncias.pdf", mimetype="application/pdf")
-
-# --------------------------
-# Execução local
-# --------------------------
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
