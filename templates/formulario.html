@@ -3,198 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <title>Registro de Denúncias - Vigiagua</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='static_style.css') }}">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f8;
             margin: 0;
-            padding: 30px;
+            padding: 20px;
         }
+
         .container {
-            max-width: 900px;
+            max-width: 650px;
             margin: auto;
-            background: white;
+            background: #fff;
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
+
         h1 {
             text-align: center;
-            color: #2c3e50;
+            color: #0a4d8c;
         }
-        .logos {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .logos img {
-            height: 60px;
-        }
+
         label {
+            font-weight: 600;
             display: block;
-            margin-top: 10px;
-            font-weight: 500;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 8px;
-            margin-top: 4px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #0078D7;
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 8px;
-            cursor: pointer;
             margin-top: 15px;
         }
-        button:hover {
-            background-color: #005fa3;
-        }
-        .mensagem {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .mensagem.erro { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
-        .mensagem.sucesso { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
-        .mensagem.alerta { background: #fff3cd; color: #664d03; border: 1px solid #ffecb5; }
-        table {
+
+        input, select, textarea, button {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
-        }
-        th, td {
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #0078D7;
-            color: white;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .btn-excluir {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .btn-excluir:hover {
-            background-color: #b02a37;
-        }
-        .btn-voltar {
-            display: block;
-            margin: 20px auto 0;
-            background-color: #555;
-            color: white;
-            border: none;
-            padding: 10px 18px;
+            padding: 10px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
             border-radius: 8px;
-            cursor: pointer;
+            box-sizing: border-box;
         }
-        .btn-voltar:hover {
-            background-color: #333;
+
+        button {
+            background-color: #0a4d8c;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #083d70;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .logo img {
+            width: 130px;
+            margin: 0 10px;
+        }
+
+        .mensagem {
+            text-align: center;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .sucesso { background-color: #c8f7c5; color: #2e7d32; }
+        .erro { background-color: #ffcdd2; color: #c62828; }
+
+        #tipoProblemaContainer, #outroProblemaContainer {
+            display: none;
+        }
+
+        #voltarBtn {
+            background-color: #888;
+            margin-top: 10px;
+        }
+
+        #voltarBtn:hover {
+            background-color: #666;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logos">
+        <div class="logo">
             <img src="{{ url_for('static', filename='logo1.png') }}" alt="Logo 1">
             <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
         </div>
 
-        <h1>Registro de Denúncias - Vigiagua</h1>
-
-        <!-- MENSAGENS -->
-        {% with mensagens = get_flashed_messages(with_categories=true) %}
-          {% if mensagens %}
-            {% for categoria, mensagem in mensagens %}
-              <div class="mensagem {{ categoria }}">{{ mensagem }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <!-- FORMULÁRIO -->
-        <form method="POST" action="/">
-            <label for="denunciante">Denunciante:</label>
-            <input type="text" name="denunciante" required>
-
-            <label for="email">E-mail:</label>
-            <input type="email" name="email">
-
-            <label for="telefone">Telefone de Contato:</label>
-            <input type="text" name="telefone">
-
-            <label for="tipo">Tipo de Denúncia:</label>
-            <select name="tipo" required>
-                <option value="">Selecione</option>
-                <option>Água</option>
-                <option>Resíduos</option>
-                <option>Esgoto</option>
-                <option>Outros</option>
-            </select>
-
-            <label for="local">Local:</label>
-            <input type="text" name="local" required>
-
-            <label for="endereco">Endereço:</label>
-            <textarea name="endereco" rows="3"></textarea>
-
-            <button type="submit">Registrar Denúncia</button>
-        </form>
-
-        <!-- HISTÓRICO -->
-        <h2 style="margin-top: 40px;">Histórico de Denúncias</h2>
-        {% if historico %}
-        <table>
-            <tr>
-                <th>Protocolo</th>
-                <th>Data</th>
-                <th>Denunciante</th>
-                <th>Tipo</th>
-                <th>Local</th>
-                <th>Ações</th>
-            </tr>
-            {% for item in historico %}
-            <tr>
-                <td>{{ item["Nº Protocolo"] }}</td>
-                <td>{{ item["Data Denúncia"] }}</td>
-                <td>{{ item["Denunciante"] }}</td>
-                <td>{{ item["Tipo Denúncia"] }}</td>
-                <td>{{ item["Local"] }}</td>
-                <td>
-                    <form method="POST" action="/excluir" style="display:inline;">
-                        <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
-                        <input type="password" name="senha" placeholder="Senha" required style="padding:4px; border-radius:6px; border:1px solid #ccc;">
-                        <label style="font-size:12px; color:#555;">
-                            <input type="checkbox" onclick="this.previousElementSibling.type = this.previousElementSibling.type === 'password' ? 'text' : 'password'"> Mostrar
-                        </label>
-                        <button type="submit" class="btn-excluir">Excluir</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-        {% else %}
-            <p style="text-align:center; color:#555;">Nenhuma denúncia registrada ainda.</p>
+        {% if mensagem %}
+            <div class="mensagem {{ tipo_mensagem }}">
+                {{ mensagem }}
+            </div>
         {% endif %}
 
-        <form action="/" method="get">
-            <button type="submit" class="btn-voltar">Voltar</button>
+        <h1>Registro de Denúncias</h1>
+
+        <form method="POST" action="/">
+            <label for="usuario">Usuário:</label>
+            <input type="text" id="usuario" name="usuario" required>
+
+            <label for="tipo_denuncia">Tipo de Denúncia:</label>
+            <select id="tipo_denuncia" name="tipo_denuncia" required>
+                <option value="">Selecione</option>
+                <option value="Abastecimento de Água">Abastecimento de Água</option>
+                <option value="Qualidade da Água">Qualidade da Água</option>
+                <option value="Falta de Abastecimento">Falta de Abastecimento</option>
+                <option value="Outros">Outros</option>
+            </select>
+
+            <div id="tipoProblemaContainer">
+                <label for="tipo_problema">Tipo de Problema:</label>
+                <select id="tipo_problema" name="tipo_problema">
+                    <option value="">Selecione</option>
+                    <option value="Cor Anormal">Cor Anormal</option>
+                    <option value="Odor Estranho">Odor Estranho</option>
+                    <option value="Sabor Incomum">Sabor Incomum</option>
+                    <option value="Presença de Substâncias Estranhas">Presença de Substâncias Estranhas</option>
+                    <option value="Espuma ou Resíduos">Espuma ou Resíduos</option>
+                    <option value="Outros">Outros</option>
+                </select>
+            </div>
+
+            <div id="outroProblemaContainer">
+                <label for="outro_problema">Descreva o Problema:</label>
+                <textarea id="outro_problema" name="outro_problema" rows="2"></textarea>
+            </div>
+
+            <label for="local">Local:</label>
+            <input type="text" id="local" name="local" required>
+
+            <label for="endereco">Endereço:</label>
+            <input type="text" id="endereco" name="endereco" required>
+
+            <label for="descricao">Descrição:</label>
+            <textarea id="descricao" name="descricao" rows="4" required></textarea>
+
+            <label for="senha_exclusao">Senha de Exclusão:</label>
+            <input type="password" id="senha_exclusao" name="senha_exclusao" placeholder="Digite a senha para exclusão">
+
+            <button type="submit">Registrar Denúncia</button>
+            <button type="button" id="voltarBtn" onclick="window.history.back()">Voltar</button>
         </form>
     </div>
+
+    <script>
+        const tipoDenuncia = document.getElementById('tipo_denuncia');
+        const tipoProblemaContainer = document.getElementById('tipoProblemaContainer');
+        const outroProblemaContainer = document.getElementById('outroProblemaContainer');
+        const tipoProblema = document.getElementById('tipo_problema');
+
+        tipoDenuncia.addEventListener('change', function() {
+            if (this.value === 'Qualidade da Água') {
+                tipoProblemaContainer.style.display = 'block';
+            } else {
+                tipoProblemaContainer.style.display = 'none';
+                outroProblemaContainer.style.display = 'none';
+                tipoProblema.value = '';
+            }
+        });
+
+        tipoProblema.addEventListener('change', function() {
+            if (this.value === 'Outros') {
+                outroProblemaContainer.style.display = 'block';
+            } else {
+                outroProblemaContainer.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
