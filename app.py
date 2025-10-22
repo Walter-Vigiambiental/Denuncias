@@ -10,11 +10,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 # -------------------------
-# Config
+# Configurações
 # -------------------------
-HISTORICO_PATH = os.environ.get("HISTORICO_PATH", "historico.json")  # default historico.json (or set env var to /tmp/historico.json)
+HISTORICO_PATH = os.environ.get("HISTORICO_PATH", "historico.json")
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 465))  # 465 (SSL) or 587 (STARTTLS)
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))  # Porta 587 (STARTTLS)
 EMAIL_USER = os.environ.get("EMAIL_USER")
 EMAIL_PASS = os.environ.get("EMAIL_PASS")
 SENHA_EXCLUSAO = os.environ.get("SENHA_EXCLUSAO", "minhasenha123")
@@ -54,11 +54,11 @@ def gerar_protocolo():
     return f"PROTO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
 # -------------------------
-# Helper: enviar email (threaded)
+# Helper: enviar e-mail (threaded)
 # -------------------------
 def _envia_email_sync(destino, assunto, corpo, anexos_paths=None):
     if not EMAIL_USER or not EMAIL_PASS:
-        print("Variáveis de e-mail não configuradas; não será enviado.")
+        print("❌ Variáveis de e-mail não configuradas; e-mail não será enviado.")
         return False
 
     try:
@@ -68,7 +68,7 @@ def _envia_email_sync(destino, assunto, corpo, anexos_paths=None):
         msg["Subject"] = assunto
         msg.set_content(corpo)
 
-        # anexos (opcionais)
+        # anexos opcionais
         if anexos_paths:
             for p in anexos_paths:
                 try:
@@ -79,22 +79,22 @@ def _envia_email_sync(destino, assunto, corpo, anexos_paths=None):
                 except Exception as e:
                     print("Falha ao anexar", p, e)
 
-        if SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20) as smtp:
-                smtp.login(EMAIL_USER, EMAIL_PASS)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20) as smtp:
-                smtp.ehlo()
-                smtp.starttls()
-                smtp.login(EMAIL_USER, EMAIL_PASS)
-                smtp.send_message(msg)
+        # conexão segura STARTTLS
+        print("DEBUG SMTP:", SMTP_SERVER, SMTP_PORT, EMAIL_USER)
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=25) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+            smtp.login(EMAIL_USER, EMAIL_PASS)
+            smtp.send_message(msg)
 
-        print("E-mail enviado para", destino)
+        print(f"✅ E-mail enviado com sucesso para {destino}")
         return True
+
     except Exception as e:
-        print("Erro envio e-mail:", e)
+        print("❌ Erro no envio de e-mail:", e)
         return False
+
 
 def envia_email_background(destino, assunto, corpo, anexos_paths=None):
     thread = threading.Thread(target=_envia_email_sync, args=(destino, assunto, corpo, anexos_paths), daemon=True)
@@ -105,11 +105,6 @@ def envia_email_background(destino, assunto, corpo, anexos_paths=None):
 # -------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
-    """
-    Página principal com abas:
-     - aba=denuncias (form)
-     - aba=historico  (lista)
-    """
     aba = request.args.get("aba", "denuncias")
     historico = _carregar_historico()
 
@@ -118,15 +113,14 @@ def index():
         denunciante = request.form.get("denunciante", "").strip()
         email_usuario = request.form.get("email", "").strip()
         telefone = request.form.get("telefone", "").strip()
-        tipo = request.form.get("tipo", "").strip()  # ex: "Qualidade da Água"
-        tipo_problema = request.form.get("tipo_problema", "").strip()  # se aplicável
+        tipo = request.form.get("tipo", "").strip()
+        tipo_problema = request.form.get("tipo_problema", "").strip()
         outro_problema = request.form.get("outro_problema", "").strip()
         local = request.form.get("local", "").strip()
         endereco = request.form.get("endereco", "").strip()
         descricao = request.form.get("descricao", "").strip()
 
-        # construir descrição do problema final
-        problema_final = ""
+        # tipo de problema final
         if tipo == "Qualidade da Água":
             if tipo_problema == "Outros":
                 problema_final = outro_problema or "Outros (não especificado)"
@@ -135,7 +129,7 @@ def index():
         else:
             problema_final = ""
 
-        # validação mínima
+        # validação
         if not denunciante or not tipo or not local or not endereco:
             flash("Preencha os campos obrigatórios (Denunciante, Tipo, Local e Endereço).", "erro")
             return redirect(url_for("index", aba="denuncias"))
@@ -153,15 +147,14 @@ def index():
             "Telefone Contato": telefone
         }
 
-        # salvar no histórico
+        # salva no histórico
         hist = _carregar_historico()
         hist.append(registro)
-        saved = _salvar_historico(hist)
-        if not saved:
+        if not _salvar_historico(hist):
             flash("Erro ao salvar o registro. Verifique permissões de disco.", "erro")
             return redirect(url_for("index", aba="denuncias"))
 
-        # gerar relatório simples (txt) temporário (opcional / para anexar)
+        # gerar relatório temporário
         rel_path = None
         try:
             rel_path = f"/tmp/relatorio_{registro['Nº Protocolo']}.txt"
@@ -170,9 +163,8 @@ def index():
                     rf.write(f"{k}: {v}\n")
         except Exception as e:
             print("Não foi possível criar relatorio:", e)
-            rel_path = None
 
-        # enviar e-mail em background (se e-mail do denunciante informado, envia pra ele e bcc pro laboratório)
+        # enviar e-mail
         assunto = f"Denúncia registrada: {registro['Nº Protocolo']}"
         corpo = (
             f"Protocolo: {registro['Nº Protocolo']}\n"
@@ -186,20 +178,17 @@ def index():
             f"Telefone: {registro['Telefone Contato']}\n"
         )
 
-        # destinatários: se houver email do usuário, envia para ele; sempre enviar para o próprio EMAIL_USER em cópia (adapte se quiser)
-        destinatario = email_usuario if email_usuario else (EMAIL_USER or "")
+        destinatario = email_usuario if email_usuario else EMAIL_USER
         if destinatario:
             envia_email_background(destinatario, assunto, corpo, anexos_paths=[rel_path] if rel_path else None)
         else:
-            # como fallback, envie para o EMAIL_USER (se configurado)
-            if EMAIL_USER:
-                envia_email_background(EMAIL_USER, assunto, corpo, anexos_paths=[rel_path] if rel_path else None)
+            print("⚠️ Nenhum destinatário definido para envio de e-mail.")
 
         flash("Denúncia registrada com sucesso.", "sucesso")
         return redirect(url_for("index", aba="historico"))
 
-    # GET: renderiza
     return render_template("formulario.html", historico=historico, aba=aba)
+
 
 @app.route("/excluir", methods=["POST"])
 def excluir():
@@ -212,19 +201,19 @@ def excluir():
 
     historico = _carregar_historico()
     novo = [r for r in historico if r.get("Nº Protocolo") != protocolo]
+
     if len(novo) == len(historico):
         flash("Protocolo não encontrado. Nada foi excluído.", "alerta")
         return redirect(url_for("index", aba="historico"))
 
-    ok = _salvar_historico(novo)
-    if ok:
+    if _salvar_historico(novo):
         flash(f"Registro {protocolo} excluído com sucesso.", "sucesso")
     else:
-        flash("Erro ao excluir o registro (salvar falhou).", "erro")
+        flash("Erro ao excluir o registro.", "erro")
 
     return redirect(url_for("index", aba="historico"))
 
-# Exporte PDF do histórico (opcional)
+
 @app.route("/exportar_pdf")
 def exportar_pdf():
     historico = _carregar_historico()
@@ -233,7 +222,6 @@ def exportar_pdf():
     width, height = A4
     y = height - 80
 
-    # cabeçalho
     pdf.setFont("Helvetica-Bold", 14)
     pdf.drawString(40, y, "Histórico de Denúncias")
     y -= 30
@@ -261,8 +249,9 @@ def exportar_pdf():
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name="historico_denuncias.pdf", mimetype="application/pdf")
 
+
 # -------------------------
-# Run (use PORT env var when deployed)
+# Execução
 # -------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
