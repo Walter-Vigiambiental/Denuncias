@@ -2,206 +2,186 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Denúncias</title>
+    <title>Registro de Denúncias - Vigiagua</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f8;
             margin: 0;
-            padding: 40px;
+            padding: 20px;
         }
 
         h1 {
-            margin-bottom: 20px;
-            color: #333;
+            text-align: center;
+            color: #004d66;
         }
 
-        .tabs {
+        .abas {
             display: flex;
-            margin-bottom: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
         }
 
-        .tab-button {
+        .abas a {
             padding: 10px 20px;
-            cursor: pointer;
-            background-color: #ddd;
-            border: none;
-            border-radius: 6px 6px 0 0;
-            margin-right: 5px;
-            font-weight: bold;
+            text-decoration: none;
+            background-color: #e0e0e0;
             color: #333;
+            border-radius: 5px 5px 0 0;
+            margin: 0 5px;
         }
 
-        .tab-button.active {
-            background-color: #fff;
-            border-bottom: 2px solid #fff;
-            color: #000;
+        .abas a.ativa {
+            background-color: #004d66;
+            color: white;
+            font-weight: bold;
         }
 
-        .tab-content {
-            display: none;
-            background-color: #fff;
+        form {
+            background: white;
+            max-width: 700px;
+            margin: 0 auto;
             padding: 30px;
-            border-radius: 0 6px 6px 6px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .form-container {
-            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #ccc;
         }
 
         label {
-            font-weight: bold;
             display: block;
-            margin-top: 16px;
-            margin-bottom: 4px;
-            color: #444;
+            margin-top: 12px;
+            font-weight: 600;
+            color: #004d66;
         }
 
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
+        input, select, textarea {
             width: 100%;
             padding: 10px;
+            margin-top: 6px;
+            border-radius: 6px;
             border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         button {
-            padding: 10px 16px;
-            margin-top: 20px;
-            background-color: #0078d4;
+            background-color: #007a99;
             color: white;
             border: none;
-            border-radius: 4px;
+            padding: 12px 25px;
+            margin-top: 20px;
+            border-radius: 6px;
+            font-size: 16px;
             cursor: pointer;
         }
 
         button:hover {
-            background-color: #005fa3;
-        }
-
-        .fixed-logos {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 15px;
-            z-index: 1000;
-        }
-
-        .fixed-logos img {
-            height: 150px;
+            background-color: #005f73;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            background: white;
+            box-shadow: 0 0 10px #ccc;
         }
 
         th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            font-size: 14px;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
             text-align: left;
         }
 
         th {
-            background-color: #f0f0f0;
+            background-color: #004d66;
+            color: white;
         }
 
-        .filtro-container {
-            margin-bottom: 20px;
+        .flash {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            text-align: center;
         }
 
-        .filtro-container select {
-            padding: 6px;
-            margin-right: 10px;
+        .flash.sucesso { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.alerta  { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash.erro    { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .acoes {
+            display: flex;
+            gap: 10px;
         }
 
-        .excluir-form {
-            display: inline;
+        .acoes button {
+            flex: 1;
         }
 
-        .excluir-form input {
-            width: 100px;
-            margin-right: 5px;
+        .voltar-btn {
+            display: inline-block;
+            margin-top: 15px;
+            text-decoration: none;
+            color: #007a99;
+            font-weight: 500;
+        }
+
+        .voltar-btn:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="fixed-logos">
-        <img src="{{ url_for('static', filename='logo1.png') }}" alt="Logo 1">
-        <img src="{{ url_for('static', filename='logo2.png') }}" alt="Logo 2">
+
+    <h1>Registro de Denúncias - Vigiagua</h1>
+
+    <div class="abas">
+        <a href="/?aba=formulario" class="{{ 'ativa' if aba == 'formulario' else '' }}">Registrar Denúncia</a>
+        <a href="/?aba=historico" class="{{ 'ativa' if aba == 'historico' else '' }}">Histórico</a>
     </div>
 
-    <h1>Registro de Denúncias</h1>
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        {% for categoria, msg in mensagens %}
+          <div class="flash {{ categoria }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-    <div class="tabs">
-        <button class="tab-button" onclick="showTab('formulario')">Formulário</button>
-        <button class="tab-button" onclick="showTab('historico')">Histórico</button>
-    </div>
+    {% if aba == 'formulario' %}
+    <!-- ====================== FORMULÁRIO ====================== -->
+    <form method="POST" action="/">
+        <label for="denunciante">Denunciante:</label>
+        <input type="text" name="denunciante" id="denunciante" required>
 
-    <div id="formulario" class="tab-content">
-        <div class="form-container">
-            <form method="POST">
-                <label for="denunciante">Denunciante:</label>
-                <input type="text" name="denunciante" id="denunciante" required>
+        <label for="email">E-mail:</label>
+        <input type="email" name="email" id="email" placeholder="exemplo@email.com">
 
-                <label for="tipo">Tipo de Denúncia:</label>
-                <input type="text" name="tipo" id="tipo" required>
+        <label for="telefone">Telefone de contato:</label>
+        <input type="text" name="telefone" id="telefone">
 
-                <label for="local">Local:</label>
-                <input type="text" name="local" id="local" required>
+        <label for="tipo">Tipo de denúncia:</label>
+        <select name="tipo" id="tipo" required>
+            <option value="">Selecione...</option>
+            <option>Qualidade da Água</option>
+            <option>Falta de Abastecimento</option>
+            <option>Vazamento</option>
+            <option>Outros</option>
+        </select>
 
-                <label for="endereco">Endereço:</label>
-                <input type="text" name="endereco" id="endereco" required>
+        <label for="local">Local:</label>
+        <input type="text" name="local" id="local" required>
 
-                <label for="email">E-mail:</label>
-                <input type="email" name="email" id="email" placeholder="Digite seu e-mail" required>
+        <label for="endereco">Endereço:</label>
+        <textarea name="endereco" id="endereco" rows="2" required></textarea>
 
-                <label for="telefone">Telefone de Contato:</label>
-                <input type="text" name="telefone" id="telefone" required>
+        <button type="submit">Registrar Denúncia</button>
+    </form>
+    {% endif %}
 
-                <label for="usuario">Usuário (responsável pelo registro):</label>
-                <input type="text" name="usuario" id="usuario" placeholder="Nome do agente ou responsável" required>
-
-                <button type="submit">Registrar Denúncia</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="historico" class="tab-content">
-        <div class="filtro-container">
-            <form method="GET">
-                <input type="hidden" name="aba" value="historico">
-                <label for="mes">Mês:</label>
-                <select name="mes" id="mes">
-                    <option value="">Todos</option>
-                    {% for m in range(1,13) %}
-                        <option value="{{ '%02d' % m }}" {% if request.args.get('mes') == '%02d' % m %}selected{% endif %}>{{ '%02d' % m }}</option>
-                    {% endfor %}
-                </select>
-
-                <label for="ano">Ano:</label>
-                <select name="ano" id="ano">
-                    <option value="">Todos</option>
-                    {% for a in range(2020, 2031) %}
-                        <option value="{{ a }}" {% if request.args.get('ano') == a|string %}selected{% endif %}>{{ a }}</option>
-                    {% endfor %}
-                </select>
-
-                <button type="submit">Filtrar</button>
-                <a href="/exportar_pdf" style="margin-left: 20px;">Exportar PDF</a>
-            </form>
-        </div>
-
+    {% if aba == 'historico' %}
+    <!-- ====================== HISTÓRICO ====================== -->
+    <div style="max-width: 1000px; margin: 0 auto;">
+        {% if historico %}
         <table>
             <thead>
                 <tr>
@@ -210,56 +190,57 @@
                     <th>Denunciante</th>
                     <th>Tipo</th>
                     <th>Local</th>
-                    <th>Endereço</th>
                     <th>E-mail</th>
                     <th>Telefone</th>
-                    <th>Usuário</th>
                     <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in historico %}
+            {% for item in historico %}
                 <tr>
                     <td>{{ item["Nº Protocolo"] }}</td>
                     <td>{{ item["Data Denúncia"] }}</td>
                     <td>{{ item["Denunciante"] }}</td>
                     <td>{{ item["Tipo Denúncia"] }}</td>
                     <td>{{ item["Local"] }}</td>
-                    <td>{{ item["Endereço"] }}</td>
                     <td>{{ item["E-mail"] }}</td>
                     <td>{{ item["Telefone Contato"] }}</td>
-                    <td>{{ item["Usuário"] }}</td>
                     <td>
-                        <form method="POST" action="/excluir" class="excluir-form">
+                        <form action="/excluir" method="POST" onsubmit="return confirmarExclusao(this)">
                             <input type="hidden" name="protocolo" value="{{ item['Nº Protocolo'] }}">
-                            <input type="password" name="senha" placeholder="Senha" required>
-                            <button type="submit">Excluir</button>
+                            <div class="acoes">
+                                <button type="submit">Excluir</button>
+                            </div>
                         </form>
                     </td>
                 </tr>
-                {% endfor %}
+            {% endfor %}
             </tbody>
         </table>
+        <div style="text-align:center; margin-top: 20px;">
+            <a href="/exportar_pdf" class="voltar-btn">📄 Exportar PDF</a>
+            <a href="/?aba=formulario" class="voltar-btn">⬅️ Voltar</a>
+        </div>
+        {% else %}
+        <p style="text-align:center; color:#777;">Nenhuma denúncia registrada até o momento.</p>
+        <div style="text-align:center;">
+            <a href="/?aba=formulario" class="voltar-btn">⬅️ Voltar</a>
+        </div>
+        {% endif %}
     </div>
+    {% endif %}
 
     <script>
-        function showTab(tabId) {
-            const tabs = document.querySelectorAll('.tab-content');
-            const buttons = document.querySelectorAll('.tab-button');
-
-            tabs.forEach(tab => tab.classList.remove('active'));
-            buttons.forEach(btn => btn.classList.remove('active'));
-
-            document.getElementById(tabId).classList.add('active');
-            const activeButton = document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`);
-            if (activeButton) activeButton.classList.add('active');
+        function confirmarExclusao(form) {
+            const senha = prompt("Digite a senha para excluir este registro:");
+            if (senha === null) return false;
+            const senhaInput = document.createElement("input");
+            senhaInput.type = "hidden";
+            senhaInput.name = "senha";
+            senhaInput.value = senha;
+            form.appendChild(senhaInput);
+            return true;
         }
-
-        window.onload = function () {
-            const aba = "{{ aba | default('formulario') }}";
-            showTab(aba);
-        };
     </script>
 </body>
 </html>
-
