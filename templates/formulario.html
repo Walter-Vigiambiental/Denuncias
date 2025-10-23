@@ -56,8 +56,8 @@
       padding:20px;
       border-radius:10px;
       box-shadow:0 2px 10px rgba(0,0,0,0.06);
-      max-width:600px;           /* 🔹 Largura máxima reduzida */
-      margin:0 auto;             /* 🔹 Centraliza o formulário */
+      max-width:600px;
+      margin:0 auto;
     }
 
     label {
@@ -66,7 +66,7 @@
       font-weight:600;
     }
 
-    input, select, textarea, button {
+    input, select, textarea {
       width:100%;
       padding:10px;
       margin-top:6px;
@@ -81,6 +81,11 @@
       border:none;
       font-weight:700;
       cursor:pointer;
+      padding:8px 20px;       /* 🔹 Botão menor */
+      border-radius:8px;
+      display:block;
+      margin:12px auto 0 auto; /* 🔹 Centraliza o botão */
+      width:auto;              /* 🔹 Largura automática */
     }
 
     .flash {
@@ -171,7 +176,6 @@
       {% endif %}
     {% endwith %}
 
-    <!-- ABA: Denúncias -->
     {% if aba == 'denuncias' %}
       <div class="card">
         <h1 style="font-size:18px;margin:0 0 10px 0">Registrar Denúncia</h1>
@@ -220,14 +224,11 @@
           <label>Descrição</label>
           <textarea name="descricao" rows="3"></textarea>
 
-          <div style="margin-top:10px;">
-            <button type="submit">Registrar</button>
-          </div>
+          <button type="submit">Registrar</button>
         </form>
       </div>
     {% endif %}
 
-    <!-- ABA: Histórico -->
     {% if aba == 'historico' %}
       <div class="card" style="max-width:900px;">
         <div class="top-actions">
@@ -300,4 +301,3 @@
   </script>
 </body>
 </html>
-
